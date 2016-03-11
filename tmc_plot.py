@@ -122,7 +122,7 @@ if __name__ == '__main__':
     parser.add_argument('--tstop',type=str,help='Stop time to analyze, format YYYY/MM/DD-hh:mm:ss')
     parser.add_argument('--save_dir',type=str,help='Directory in which to save plots')
     parser.add_argument('--plot_individual',help='Make the plots individually',action='store_true')
-    parser.add_argument('--version',action='version',version='%(prog)s 0.3')
+    parser.add_argument('--version',action='version',version='%(prog)s 0.4')
     parser.add_argument('--verbose',help='Print additional debugging info',action='store_true')
     
     args = parser.parse_args()    
@@ -144,10 +144,10 @@ if __name__ == '__main__':
     f_data = open(args.file_list)
     for filename in f_data:
         if filename[0] is '#':
-            print "Continue on ", filename
+            print "Continue on ", filename[:-1]
             continue;
         if '2N2222' in filename:
-            print 'Processing ', filename
+            print 'Processing ', filename[:-1]
             read_2n2222(filename[:-1],voltage_2n2222,time_2n2222,args.verbose,args.tstart,args.tstop)
             sch = (filename.split('-'))[1].split('_')[0] # System channel number: sch = 3*adc + ch
             ch = int(sch)%6
@@ -285,7 +285,23 @@ if __name__ == '__main__':
     xfmt = md.DateFormatter('%H:%M:%S')
     ax.xaxis.set_major_formatter(xfmt)
     plt.xlabel('Date')
-    plt.ylabel('2N2222 - Baseline (uV)')
+    plt.ylabel('Difference between 2N2222 and Baseline (uV)')
     plt.xticks( rotation=25 )
     plt.plot(time_2n2222,diff)
+    #plt.show()
+
+    # Take the 1 minute windowed average
+    def moving_average(interval, window_size):
+        window = np.ones(int(window_size))/float(window_size)
+        return np.convolve(interval, window, 'same')
+    np_diff = np.array(diff)    
+    avg_diff = moving_average(np_diff,20)
+    
+    timestamp_2n2222 = [timestamp(x) for x in time_2n2222]
+    np_timestamp_2n2222 = np.array(timestamp_2n2222)
+    np_avg_time_2n2222 = moving_average(np_timestamp_2n2222,20)
+    print np_avg_time_2n2222
+    print np_avg_time_2n2222.shape
+    dt_time_2n2222 = [dt.datetime.fromtimestamp(t) for t in np_avg_time_2n2222]
+    plt.plot(dt_time_2n2222[10:-10],avg_diff[10:-10],color='r')
     plt.show()
