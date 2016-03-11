@@ -62,7 +62,7 @@ def read_2n2222(fname, s_data, s_time, verbose, tstart, tstop):
         date = re.split(r'[\t:/\n-]\s*',line)
         now = datetimeit(date)
         tnow_ts = timestamp(now)
-        print tstart, tstart_ts, date, tnow_ts, tstop, tstop_ts
+        # print tstart, tstart_ts, date, tnow_ts, tstop, tstop_ts
         if (tnow_ts > tstart_ts) and (tnow_ts < tstop_ts):
                 s_time.append(now)
                 s_data.append(float(line.split('\t')[1]))
@@ -120,8 +120,9 @@ if __name__ == '__main__':
     parser.add_argument('--file_list',type=str,help='List of datafiles to plot')
     parser.add_argument('--tstart',type=str,help='Start time to analyze, format YYYY/MM/DD-hh:mm:ss')
     parser.add_argument('--tstop',type=str,help='Stop time to analyze, format YYYY/MM/DD-hh:mm:ss')
+    parser.add_argument('--save_dir',type=str,help='Directory in which to save plots')
     parser.add_argument('--plot_individual',help='Make the plots individually',action='store_true')
-    parser.add_argument('--version',action='version',version='%(prog)s 0.2')
+    parser.add_argument('--version',action='version',version='%(prog)s 0.3')
     parser.add_argument('--verbose',help='Print additional debugging info',action='store_true')
     
     args = parser.parse_args()    
@@ -139,7 +140,7 @@ if __name__ == '__main__':
     adc = 0
     ch = 0
     bd = 0
-
+    
     f_data = open(args.file_list)
     for filename in f_data:
         if filename[0] is '#':
@@ -148,8 +149,9 @@ if __name__ == '__main__':
         if '2N2222' in filename:
             print 'Processing ', filename
             read_2n2222(filename[:-1],voltage_2n2222,time_2n2222,args.verbose,args.tstart,args.tstop)
-            ch = int((filename.split('-'))[1].split('_')[0])%6
-            adc = int((filename.split('-'))[1].split('_')[0])/6
+            sch = (filename.split('-'))[1].split('_')[0] # System channel number: sch = 3*adc + ch
+            ch = int(sch)%6
+            adc = int(sch)/6
             bd = int(adc/3)
         elif 'TestCurrent' in filename:
             print 'Processing %s, TestCurrents for %d %d' %(filename[:-1],adc,ch)
@@ -265,11 +267,25 @@ if __name__ == '__main__':
         plt.ylabel('Baseline (uV)')
         plt.setp(ax5.get_xticklabels(), visible=False)
         plt.plot(time_baseline,baseline)
-        
+        # mng = plt.get_current_fig_manager()
+        # mng.full_screen_toggle()
+        figure = plt.gcf() # get current figure
+        figure.set_size_inches(16, 12)
+        # when saving, specify the DPI
+        if args.save_dir is not None:
+            figure.savefig("./"+args.save_dir+"/"+sch+".png", dpi = 100)
+            print "./"+args.save_dir+sch+".png"
+        else:
+            figure.savefig(sch+".png", dpi = 100)
         plt.show()
 
-    
     diff = [x - y for x,y  in zip(voltage_2n2222,baseline)]
     print "stdev of diff = ", np.std(np.array(diff))
+    ax=plt.gca()
+    xfmt = md.DateFormatter('%H:%M:%S')
+    ax.xaxis.set_major_formatter(xfmt)
+    plt.xlabel('Date')
+    plt.ylabel('2N2222 - Baseline (uV)')
+    plt.xticks( rotation=25 )
     plt.plot(time_2n2222,diff)
     plt.show()
