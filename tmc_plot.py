@@ -23,22 +23,49 @@ def timestamp(date):
     return time.mktime(date.timetuple())
 
 ###############################################################
+# For returning datetime
+def datetimeit(date):
+    return dt.datetime(int(date[0]),
+                       int(date[1]),
+                       int(date[2]),
+                       int(date[3]),
+                       int(date[4]),
+                       int(date[5]))
+
+###############################################################
+# For returning a timestamp from a datestring
+def datestr_to_tstart(s_time):
+    if s_time is not None:
+        split_date = re.split(r'[\t:/\n-]\s*',s_time)
+        return timestamp(datetimeit(split_date))
+    else:
+        return 0
+
+###############################################################
+# For returning a timestamp from a datestring
+def datestr_to_tstop(s_time):
+    if s_time is not None:
+        split_date = re.split(r'[\t:/\n-]\s*',s_time)
+        return timestamp(datetimeit(split_date))
+    else:
+        return 0xFFFFFFFF
+
+###############################################################
 # For reading 2n2222 data from a file
-def read_2n2222(fname, s_data, s_time, verbose):
+def read_2n2222(fname, s_data, s_time, verbose, tstart, tstop):
+    tstart_ts = datestr_to_tstart(tstart)
+    tstop_ts = datestr_to_tstop(tstop)
     f_data = open(fname)
     n = 0
     for line in f_data:
         # print line.split('\t')[1].split(' ')[0]
-        s_data.append(float(line.split('\t')[1]))
         date = re.split(r'[\t:/\n-]\s*',line)
-        now = dt.datetime(int(date[0]),
-                          int(date[1]),
-                          int(date[2]),
-                          int(date[3]),
-                          int(date[4]),
-                          int(date[5]))
-        # s_time.append(timestamp(now))
-        s_time.append(now)
+        now = datetimeit(date)
+        tnow_ts = timestamp(now)
+        print tstart, tstart_ts, date, tnow_ts, tstop, tstop_ts
+        if (tnow_ts > tstart_ts) and (tnow_ts < tstop_ts):
+                s_time.append(now)
+                s_data.append(float(line.split('\t')[1]))
         if verbose:
             print n, line[:-1]
         n+=1
@@ -46,23 +73,20 @@ def read_2n2222(fname, s_data, s_time, verbose):
 
 ###############################################################
 # For reading test currents from a file
-def read_current(fname, s_data, s_time, verbose, adc):
+def read_current(fname, s_data, s_time, verbose, adc, tstart, tstop):
+    tstart_ts = datestr_to_tstart(tstart)
+    tstop_ts = datestr_to_tstop(tstop)
     f_data = open(fname)
     n = 0
     for line in f_data:
-        split_line = line.split('\t')[1].split(' ')
-        # print split_line
-        # print split_line[adc]
-        s_data.append(float(split_line[adc]))
         date = re.split(r'[\t:/\n-]\s*',line)
-        now = dt.datetime(int(date[0]),
-                          int(date[1]),
-                          int(date[2]),
-                          int(date[3]),
-                          int(date[4]),
-                          int(date[5]))
+        now = datetimeit(date)
+        tnow_ts = timestamp(now)
         # s_time.append(timestamp(now))
-        s_time.append(now)
+        if (tnow_ts > tstart_ts) and (tnow_ts < tstop_ts):
+            s_time.append(now)
+            split_line = line.split('\t')[1].split(' ')
+            s_data.append(float(split_line[adc]))
         if verbose:
             print n, line[:-1]
         n+=1
@@ -70,23 +94,19 @@ def read_current(fname, s_data, s_time, verbose, adc):
 
 ###############################################################
 # For reading board temperatures
-def read_board_temp(fname, s_data, s_time, verbose, bd):
+def read_board_temp(fname, s_data, s_time, verbose, bd, tstart, tstop):
+    tstart_ts = datestr_to_tstart(tstart)
+    tstop_ts = datestr_to_tstop(tstop)
     f_data = open(fname)
     n = 0
     for line in f_data:
-        split_line = line.split('\t')[1].split(' ')
-        # print split_line
-        # print split_line[bd]
-        s_data.append(float(split_line[bd]))
         date = re.split(r'[\t:/\n-]\s*',line)
-        now = dt.datetime(int(date[0]),
-                          int(date[1]),
-                          int(date[2]),
-                          int(date[3]),
-                          int(date[4]),
-                          int(date[5]))
-        # s_time.append(timestamp(now))
-        s_time.append(now)
+        now = datetimeit(date)
+        tnow_ts = timestamp(now)
+        if (tnow_ts > tstart_ts) and (tnow_ts < tstop_ts):
+            s_time.append(now)
+            split_line = line.split('\t')[1].split(' ')
+            s_data.append(float(split_line[bd]))
         if verbose:
             print n, line[:-1]
         n+=1
@@ -98,8 +118,10 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(prog="tmc_plot",description="A tool for plotting TMC data.")
     parser.add_argument('--file_list',type=str,help='List of datafiles to plot')
+    parser.add_argument('--tstart',type=str,help='Start time to analyze, format YYYY/MM/DD-hh:mm:ss')
+    parser.add_argument('--tstop',type=str,help='Stop time to analyze, format YYYY/MM/DD-hh:mm:ss')
     parser.add_argument('--plot_individual',help='Make the plots individually',action='store_true')
-    parser.add_argument('--version',action='version',version='%(prog)s 0.1')
+    parser.add_argument('--version',action='version',version='%(prog)s 0.2')
     parser.add_argument('--verbose',help='Print additional debugging info',action='store_true')
     
     args = parser.parse_args()    
@@ -125,22 +147,22 @@ if __name__ == '__main__':
             continue;
         if '2N2222' in filename:
             print 'Processing ', filename
-            read_2n2222(filename[:-1],voltage_2n2222,time_2n2222,args.verbose)
+            read_2n2222(filename[:-1],voltage_2n2222,time_2n2222,args.verbose,args.tstart,args.tstop)
             ch = int((filename.split('-'))[1].split('_')[0])%6
             adc = int((filename.split('-'))[1].split('_')[0])/6
             bd = int(adc/3)
         elif 'TestCurrent' in filename:
             print 'Processing %s, TestCurrents for %d %d' %(filename[:-1],adc,ch)
-            read_current(filename[:-1],current,time_current,args.verbose,adc)
+            read_current(filename[:-1],current,time_current,args.verbose,adc,args.tstart,args.tstop)
         elif 'ADCBaseline' in filename:
             print 'Processing %s, ADCBaseline for %d %d' %(filename[:-1],adc,ch)
-            read_current(filename[:-1],baseline,time_baseline,args.verbose,adc)
+            read_current(filename[:-1],baseline,time_baseline,args.verbose,adc,args.tstart,args.tstop)
         elif 'ADCTemps' in filename:
             print 'Processing %s, ADCTemps for %d' % (filename[:-1],adc)
-            read_current(filename[:-1],adc_temp,time_adc_temp,args.verbose,adc)
+            read_current(filename[:-1],adc_temp,time_adc_temp,args.verbose,adc,args.tstart,args.tstop)
         elif 'BoardTemps' in filename:
             print 'Processing %s, BoardTemps for %d' % (filename[:-1],bd)
-            read_board_temp(filename[:-1],board_temp,time_board_temp,args.verbose,bd)
+            read_board_temp(filename[:-1],board_temp,time_board_temp,args.verbose,bd,args.tstart,args.tstop)
         
     voltage_2n2222 = [1.E6*x for x in voltage_2n2222]
     board_temp = [x-273 for x in board_temp]
