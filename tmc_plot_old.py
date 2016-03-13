@@ -16,6 +16,7 @@ import datetime as dt
 import time
 import re
 import matplotlib.dates as md
+from scipy import interpolate
 
 ###############################################################
 # For returning timestamps
@@ -300,8 +301,165 @@ if __name__ == '__main__':
     timestamp_2n2222 = [timestamp(x) for x in time_2n2222]
     np_timestamp_2n2222 = np.array(timestamp_2n2222)
     np_avg_time_2n2222 = moving_average(np_timestamp_2n2222,20)
-    print np_avg_time_2n2222
-    print np_avg_time_2n2222.shape
+    # print np_avg_time_2n2222
+    # print np_avg_time_2n2222.shape
     dt_time_2n2222 = [dt.datetime.fromtimestamp(t) for t in np_avg_time_2n2222]
-    plt.plot(dt_time_2n2222[10:-10],avg_diff[10:-10],color='r')
+    dt_time_2n2222 = dt_time_2n2222[10:-10]
+    avg_diff = avg_diff[10:-10]
+    np_avg_time_2n2222 = np_avg_time_2n2222[10:-10]
+    plt.plot(dt_time_2n2222,avg_diff,color='r')
     plt.show()
+    
+    # This is to help find the temperature coefficient
+    bt_mean = np.average(np.array(board_temp))
+    ac_board_temp = [x-bt_mean for x in board_temp]
+    # plt.plot(time_board_temp,ac_board_temp,color='g')
+    # plt.show()
+    
+    # Try to temperature correct it, coeff ~ -1.25uV/degC
+    # This doesn't seem to work so well after subtracting baseline
+    timestamp_board_temp = [timestamp(x) for x in time_board_temp]
+    f1 = interpolate.interp1d(timestamp_board_temp,ac_board_temp)
+    ac_temp_interp = f1(np_avg_time_2n2222)
+    # plt.plot(ac_temp_interp,avg_diff)
+    tcorr_diff = [y-1.25*f1(x) for x,y in zip(np_avg_time_2n2222,avg_diff)]
+    plt.plot(dt_time_2n2222,tcorr_diff,color='g')
+    plt.plot(dt_time_2n2222,avg_diff,color='b')
+    plt.show()
+
+    # Try subtracting off current, 2500Ohm
+    timestamp_current = [timestamp(x) for x in time_current]
+    timestamp_2n2222 = [timestamp(x) for x in time_2n2222]
+    f2 = interpolate.interp1d(timestamp_current,current)
+    timestamp_2n2222 = timestamp_2n2222[10:-10]
+    current_interp = f2(timestamp_2n2222)
+    # plt.plot(ac_temp_interp,avg_diff)
+    ccorr = [y-2000*f2(x) for x,y in zip(timestamp_2n2222,voltage_2n2222)]
+    dt_time_ccor = [dt.datetime.fromtimestamp(t) for t in timestamp_2n2222]
+    plt.xlabel('Date')
+    plt.plot(dt_time_ccor,ccorr,color='b')
+    plt.show()
+
+    # ####################################################################################
+    # # Now calculate the low-pass filtered baseline    
+    # # This isn't really working....
+    # def butter_lowpass(cutoff, fs, order=5):
+    #     print 'inside butter_lowpass'
+    #     nyq = 0.5 * fs
+    #     print nyq
+    #     print cutoff
+    #     normal_cutoff = cutoff / nyq
+    #     print normal_cutoff
+    #     b, a = butter(order, normal_cutoff, btype='low', analog=False)
+    #     return b, a
+
+    # def butter_lowpass_filter(data, cutoff, fs, order=5):
+    #     b, a = butter_lowpass(cutoff, fs, order=order)
+    #     y = lfilter(b, a, data)
+    #     return y
+
+    # # Filter requirements.
+    # order = 6
+    # fs = 1./3           # sample rate, Hz
+    # cutoff = 1./(300*60)  # desired cutoff frequency of the filter, Hz. Freq to kill is
+    #                     # 1./(30*60)
+    
+    # from scipy.signal import butter, lfilter, freqz
+    # # Get the filter coefficients so we can check its frequency response.
+    # b, a = butter_lowpass(cutoff, fs, order)
+    
+    # # Plot the frequency response.
+    # w, h = freqz(b, a, worN=800)
+    # plt.subplot(2, 1, 1)
+    # plt.plot(0.5*fs*w/np.pi, np.abs(h), 'b')
+    # plt.plot(cutoff, 0.5*np.sqrt(2), 'ko')
+    # plt.axvline(cutoff, color='k')
+    # plt.xlim(0, 20*cutoff)
+    # plt.title("Lowpass Filter Frequency Response")
+    # plt.xlabel('Frequency [Hz]')
+    # plt.grid()
+    # plt.show()
+
+    # # Filter the data, and plot both the original and filtered signals.
+    # np_baseline = np.array(baseline)
+    # y = butter_lowpass_filter(np_baseline, cutoff, fs, order)
+    # print np_baseline
+    # print type(np_baseline)
+    # print len(np_baseline)
+    # print y
+    # print type(y)
+    # print len(y)
+
+
+    # plt.plot(time_baseline, baseline, 'b-')
+    # plt.plot(time_baseline, y, 'g-', linewidth=2)
+    # plt.xlabel('Time [sec]')
+    # plt.show()
+
+    # ##################################################################################
+    # # Now calculate the moving average baseline
+    # np_baseline = np.array(baseline)
+    # avg_baseline = moving_average(np_baseline,2000)
+    # time_baseline = time_baseline[1000:-1000]
+    # avg_baseline = avg_baseline[1000:-1000]
+    # baseline = baseline[1000:-1000]
+    # plt.plot(time_baseline[1000:-1000],baseline[1000:-1000])
+    # plt.plot(time_baseline[1000:-1000],avg_baseline[1000:-1000])
+    # plt.show()
+
+    # ccorr2 = np.array(ccorr[1000:-1000])
+    # avg_baseline = avg_baseline[10:-10]
+    # time_baseline = time_baseline[10:-10]
+    # print len(ccorr2)
+    # print type(ccorr2)
+    # print ccorr2
+    # print len(avg_baseline)
+    # print type(avg_baseline)
+    # print avg_baseline
+    # print len(time_baseline)
+    # print type(time_baseline)
+    # # print time_baseline
+    # # diff2 = [x1-x2 for x1,x2 in zip(avg_baseline,ccorr2)]
+    # diff2 = ccorr2 - avg_baseline
+    # plt.plot(time_baseline,ccorr2)
+    # plt.show()
+
+    ####################################################################################
+    # Now calculate the moving average baseline
+    np_baseline = np.array(baseline)
+    avg_baseline = moving_average(np_baseline,4000)
+    time_baseline = time_baseline[1000:-1000]
+    avg_baseline = avg_baseline[1000:-1000]
+    baseline = baseline[1000:-1000]
+    plt.plot(time_baseline[1000:-1000],baseline[1000:-1000])
+    plt.plot(time_baseline[1000:-1000],avg_baseline[1000:-1000])
+    plt.show()
+
+    # This subtracts off of the current corrected baseline...not so good
+    # ccorr2 = np.array(ccorr[1000:-1000])
+    # avg_baseline = avg_baseline[10:-10]
+    # time_baseline = time_baseline[10:-10]
+    # print len(ccorr2)
+    # print type(ccorr2)
+    # print ccorr2
+    # print len(avg_baseline)
+    # print type(avg_baseline)
+    # print avg_baseline
+    # print len(time_baseline)
+    # print type(time_baseline)
+    # diff2 = ccorr2 - avg_baseline
+    # plt.plot(time_baseline,ccorr2)
+    # plt.show()
+    
+    # This subtracts off of the raw baseline
+    voltage_2n2222 = voltage_2n2222[1000:-1000]
+    timestamp_2n2222 = timestamp_2n2222[1000:-1000]
+    timestamp_baseline = [timestamp(x) for x in time_baseline]
+    f3 = interpolate.interp1d(timestamp_baseline,avg_baseline)
+    bcorr_diff = [y-f3(x) for y,x in zip(voltage_2n2222,timestamp_2n2222)]
+    # plt.plot(timestamp_2n2222,bcorr_diff)
+    avg_diff2 = moving_average(bcorr_diff,20)
+    plt.plot(timestamp_2n2222[1000:-1000],avg_diff2[1000:-1000],color='r')
+    plt.show()
+
+    
