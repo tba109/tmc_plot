@@ -156,7 +156,51 @@ def read_board_temp(fname, s_data, s_time, verbose, bd, tstart, tstop):
             print n, line[:-1]
         n+=1
     f_data.close()
+
+###############################################################
+# Plot the data
+def plot_data(time_2n2222,     voltage_2n2222,
+              time_current,    current,
+              time_adc_temp,   adc_temp,
+              time_board_temp, board_temp,
+              time_baseline,   baseline):    
+    ax1 = plt.subplot(515)
+    plt.ylabel('2N2222 (uV)')
+    plt.setp(ax1.get_xticklabels(), fontsize=8)
+    plt.xticks(rotation=25)
+    plt.plot(time_2n2222,voltage_2n2222)
     
+    ax2 = plt.subplot(514, sharex=ax1)
+    plt.ylabel('Current (uV)')
+    plt.setp(ax2.get_xticklabels(), visible=False)
+    plt.plot(time_current,current)
+    
+    ax3 = plt.subplot(513, sharex=ax1)
+    plt.ylabel('ATemp (degC)')
+    plt.setp(ax3.get_xticklabels(), visible=False)
+    plt.plot(time_adc_temp,adc_temp)
+    
+    ax4 = plt.subplot(512, sharex=ax1)
+    plt.ylabel('BTemp (degC)')
+    plt.setp(ax4.get_xticklabels(), visible=False)
+    plt.plot(time_board_temp,board_temp)
+    
+    ax5 = plt.subplot(511, sharex=ax1)
+    plt.ylabel('Baseline (uV)')
+    plt.setp(ax5.get_xticklabels(), visible=False)
+    plt.plot(time_baseline,baseline)
+    # mng = plt.get_current_fig_manager()
+    # mng.full_screen_toggle()
+    figure = plt.gcf() # get current figure
+    figure.set_size_inches(16, 12)
+    # # when saving, specify the DPI
+    # if args.save_dir is not None:
+    #     figure.savefig("./"+args.save_dir+"/"+sch+".png", dpi = 100)
+    #     print "./"+args.save_dir+sch+".png"
+    # else:
+    #     figure.savefig(sch+".png", dpi = 100)
+    plt.show()
+
 ###############################################################
 # For running independently
 if __name__ == '__main__':
@@ -166,7 +210,7 @@ if __name__ == '__main__':
     parser.add_argument('--tstart',type=str,help='Start time to analyze, format YYYY/MM/DD-hh:mm:ss')
     parser.add_argument('--tstop',type=str,help='Stop time to analyze, format YYYY/MM/DD-hh:mm:ss')
     parser.add_argument('--save_dir',type=str,help='Directory in which to save plots')
-    parser.add_argument('--version',action='version',version='%(prog)s 2.0')
+    parser.add_argument('--version',action='version',version='%(prog)s 3.0')
     parser.add_argument('--verbose',help='Print additional debugging info',action='store_true')
     
     args = parser.parse_args()    
@@ -214,42 +258,6 @@ if __name__ == '__main__':
     board_temp = [x-273 for x in board_temp]
     baseline = [1.E6*x for x in baseline]
 
-    ax1 = plt.subplot(515)
-    plt.ylabel('2N2222 (uV)')
-    plt.setp(ax1.get_xticklabels(), fontsize=8)
-    plt.plot(time_2n2222,voltage_2n2222)
-    
-    ax2 = plt.subplot(514, sharex=ax1)
-    plt.ylabel('Current (uA)')
-    plt.setp(ax2.get_xticklabels(), visible=False)
-    plt.plot(time_current,current)
-    
-    ax3 = plt.subplot(513, sharex=ax1)
-    plt.ylabel('ATemp (degC)')
-    plt.setp(ax3.get_xticklabels(), visible=False)
-    plt.plot(time_adc_temp,adc_temp)
-    
-    ax4 = plt.subplot(512, sharex=ax1)
-    plt.ylabel('BTemp (degC)')
-    plt.setp(ax4.get_xticklabels(), visible=False)
-    plt.plot(time_board_temp,board_temp)
-    
-    ax5 = plt.subplot(511, sharex=ax1)
-    plt.ylabel('Baseline (uV)')
-    plt.setp(ax5.get_xticklabels(), visible=False)
-    plt.plot(time_baseline,baseline)
-    # mng = plt.get_current_fig_manager()
-    # mng.full_screen_toggle()
-    figure = plt.gcf() # get current figure
-    figure.set_size_inches(16, 12)
-    # when saving, specify the DPI
-    if args.save_dir is not None:
-        figure.savefig("./"+args.save_dir+"/"+sch+".png", dpi = 100)
-        print "./"+args.save_dir+sch+".png"
-    else:
-        figure.savefig(sch+".png", dpi = 100)
-    plt.show()
-
     ###########################################################################
     # Create a bunch of time interpolating functions for all of the variables
     # (much easier to work with)
@@ -268,89 +276,59 @@ if __name__ == '__main__':
     # Create time variables to work with from here out
     time_dt = time_2n2222[10:-10] # This peels off some problematic boundaries
     time_ts = [timestamp(x) for x in time_dt]
-    
-    # # Check the interpolations
-    # plt.plot(time_dt,f_2nv(time_ts))
-    # plt.show()
-    # plt.plot(time_dt,f_cur(time_ts))
-    # plt.show()
-    # plt.plot(time_dt,f_bsln(time_ts))
-    # plt.show()
-    # plt.plot(time_dt,f_atemp(time_ts))
-    # plt.show()
-    # plt.plot(time_dt,f_btemp(time_ts))
-    # plt.show()
 
-    # Calculate the offset drift from the average baseline
-    bsln_avg = moving_average2(f_bsln(time_ts),2000)
-    offset = bsln_avg - bsln_avg[-1]
-    plt.plot(time_dt,f_bsln(time_ts),color='b')
-    plt.plot(time_dt,bsln_avg,color='r',linewidth=2.0)
-    plt.xlabel('Date')
-    plt.ylabel('Baseline ' + '(' + r'$\mu$'+'V)')
-    plt.show()
-    
-    # Correct for ADC drift (the slow thing):
-    # 1.) Convert all signals back to uV, 
-    # 2.) correct the baseline 
-    # 3.) convert back to native units 
-    sig_offc_2nv_uv = f_2nv(time_ts) - offset
-    sig_offc_cur_uv = (f_cur(time_ts)*1.E4 - offset)
-    sig_offc_bsln_uv = (f_bsln(time_ts) - offset)
-    sig_offc_btemp_uv = (f_btemp(time_ts)*1000. - offset)
-    sig_offc_btemp_degc = (f_btemp(time_ts)*1000. - offset)/1000.
-    
-    # A cleaner quantity: averaged over 1 minute
-    sig_offc_2nv_uv_avg = moving_average2(sig_offc_2nv_uv,20)
-    sig_offc_cur_uv_avg = moving_average2(sig_offc_cur_uv,20)
-    sig_offc_bsln_uv_avg = moving_average2(sig_offc_bsln_uv,20)
-    sig_offc_atemp_degc_avg = moving_average2(f_atemp(time_ts),20)
-    sig_offc_btemp_degc_avg = moving_average2(sig_offc_btemp_degc,20)
+    #############################################################
+    # Step 1: Start with the following raw signals
+    vt1 = f_2nv(time_ts) # 2N2222 signal in microvolts
+    vi1 = f_cur(time_ts)*1.E4 # Excitation current in microvolts
+    vb1 = f_bsln(time_ts) # Baseline in microvolts
+    tat = f_atemp(time_ts) # ADC temperature in degC
+    tbt = f_btemp(time_ts) # Board temperature in degC
+    plot_data(time_dt, vt1,
+              time_dt, vi1,
+              time_dt, tat,
+              time_dt, tbt,
+              time_dt, vb1)
 
-    ######################################################################
-    # How does the HVAC component of the baseline compare to the current
-    # in uV?
-    plt.plot(time_dt,sig_offc_cur_uv_avg-np.mean(sig_offc_cur_uv_avg),color='b')
-    plt.plot(time_dt,sig_offc_bsln_uv_avg-np.mean(sig_offc_bsln_uv_avg),color='g')
-    # Do the subtraction and plot on top
-    sig_bcor_offc_cur_uv = sig_offc_cur_uv_avg - sig_offc_bsln_uv_avg
-    plt.plot(time_dt,sig_bcor_offc_cur_uv-np.mean(sig_bcor_offc_cur_uv),color='r')
-    plt.ylabel('Current and Baseline ' + '(' + r'$\mu$'+'V)')
-    plt.xlabel('Date')
-    plt.xticks(rotation=25)
-    plt.show()
+    #############################################################
+    # Step 2: generate the baseline corrected versions of 
+    # excitation current and 2n2222 voltage
+    vi2 = vi1 - vb1
+    vt2 = vt1 - vb1
+    plot_data(time_dt, vt2,
+              time_dt, vi2,
+              time_dt, tat,
+              time_dt, tbt,
+              time_dt, vb1)
 
-    #######################################################################
-    # Now remove the baseline from the 2n2222 voltage
-    sig_bcor_offc_2nv_uv = sig_offc_2nv_uv - sig_offc_bsln_uv_avg
-    plt.plot(time_dt,sig_offc_2nv_uv-np.mean(sig_offc_2nv_uv),color='b')
-    plt.plot(time_dt,sig_bcor_offc_2nv_uv-np.mean(sig_bcor_offc_2nv_uv),color='g')
-    plt.show()
+    #############################################################
+    # Step 3: Calculate the current correction coefficient,
+    # and apply the dynamic resistance correction.
+    # Probably the simplest way to do this is to calculate the
+    # dynamic resistance from the temperature setpoint for the
+    # sensor.
+    ii2 = vi2/10000
+    Tk = 180.
+    Rd = 7.47*Tk - 42.0
+    vt3 = vt2 - ii2*Rd
+    plot_data(time_dt, vt3,
+              time_dt, vi2,
+              time_dt, tat,
+              time_dt, tbt,
+              time_dt, vb1)
+    rms_vt3 = np.std(vt3)
+    print '2N2222 RMS = %f uV, (%f mK)' % (rms_vt3,rms_vt3/2.5)
 
-    #######################################################################
-    # Finally, compare the current to the voltage seen. As a first pass, 
-    # plot them mean subtracted, and onthe same scale
-    sig_bcor_offc_2nv_uv_avg = moving_average(sig_bcor_offc_2nv_uv,20)
-    plt.plot(time_dt,sig_bcor_offc_2nv_uv_avg-np.mean(sig_bcor_offc_2nv_uv_avg),color='b')
-    plt.plot(time_dt,(sig_bcor_offc_cur_uv-np.mean(sig_bcor_offc_cur_uv))/7.7,color='g')
-    plt.show()
-
-    sig_ccor_bcor_offc_2nc_uv = sig_bcor_offc_2nv_uv - sig_bcor_offc_cur_uv/7.7
-    rms_2nv = np.std(sig_ccor_bcor_offc_2nc_uv)
-    print '2N2222 RMS = %f uV, (%f mK)' % (rms_2nv,rms_2nv/2.5)
-    plt.plot(time_dt,sig_ccor_bcor_offc_2nc_uv)
-    sig_ccor_bcor_offc_2nc_uv_avg = moving_average(sig_ccor_bcor_offc_2nc_uv,20)
-    plt.ylabel('Corrected 2N2222 Voltage ' + '(' + r'$\mu$'+'V)')
-    plt.xlabel('Date')
-    plt.plot(time_dt,sig_ccor_bcor_offc_2nc_uv_avg,'r')
-    plt.show()
-
-    #######################################################################
-    # The result plot, all corrected up
-    plt.plot(time_dt,(sig_ccor_bcor_offc_2nc_uv_avg-np.mean(sig_ccor_bcor_offc_2nc_uv_avg))/-2.5,'b')
-    rms_2nv = np.std(sig_ccor_bcor_offc_2nc_uv_avg)
-    print '2N2222 RMS = %f uV, (%f mK)' % (rms_2nv,rms_2nv/2.5)
+    ############################################################
+    # Last but not least, the result as the 1 minute average 
+    vt4 = moving_average(vt3,20)
+    vt4 = vt4 - np.mean(vt4)
+    rms_vt4 = np.std(vt4)
+    print '2N2222 RMS = %f uV, (%f mK)' % (rms_vt4,rms_vt4/2.5)
+    plt.plot(time_dt,vt4/-2.5)
     plt.ylabel('2N2222 Signal (mK)')
     plt.xlabel('Date')
+    plt.xticks(rotation=25)
     plt.ylim(-1,1)
     plt.show()
+

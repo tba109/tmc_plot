@@ -1,3 +1,9 @@
 Thu Mar 10 13:58:42 EST 2016
 
-Code to readout the TMC data. 
+Code to readout the TMC data.
+
+tmc_plot_old.py: first pass
+tmc_plot_v0.py: cleaned up a bit
+tmc_plot_v1.py: getting better
+tmc_plot_v2.py: this is what I showed at the March 14, 2016 10AM HFP meeting
+tmc_plot_v3.py: this is what I used to write up the corrections for the science computer
