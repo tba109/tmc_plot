@@ -295,7 +295,7 @@ if __name__ == '__main__':
     gcorr = [x/625000. for x in vb1]
     # This gives not great, but not terrible results
     # gcorr2 = [g*g for g in gcorr]
-    gcorr2 = [g for g in gcorr]
+    gcorr2 = [1+2*(g-1) for g in gcorr]
     # This gives not great, but not terrible results
     for el,el2 in zip(gcorr,gcorr2):
         print el,el2
