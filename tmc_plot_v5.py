@@ -293,7 +293,10 @@ if __name__ == '__main__':
     #############################################################
     # Step 2: Generate the gain correction
     gcorr = [x/625000. for x in vb1]
-    gcorr2 = [g*g for g in gcorr]
+    # This gives not great, but not terrible results
+    # gcorr2 = [g*g for g in gcorr]
+    gcorr2 = [g for g in gcorr]
+    # This gives not great, but not terrible results
     for el,el2 in zip(gcorr,gcorr2):
         print el,el2
     vi2 = vi1
